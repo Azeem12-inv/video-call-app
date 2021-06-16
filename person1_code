@@ -1,0 +1,61 @@
+import cv2
+import base64
+import socket
+import time
+import threading
+#this function will recive image bytes from server which is sended by person2 to the server
+def videoreciver(): 
+    s=socket.socket()
+    ip="13.232.156.8"
+    port=2027
+    s.connect((ip,port))  # connecting to aws server
+    i=0
+    while True:
+        time.sleep(2) #making delay so that we can capture image from server and show otherwise it was not showing...
+        try: #here used error handling because some bytes our function can't recive so to escape from issue we have used
+            data =s.recv(100000000)  #recieving image in bytes but encoded
+            #print(data)
+            imgdata = base64.b64decode(data)  #decoding the data(image)..as we know in socket things always travel into encoded form
+            filename="{}.jpg".format(i)
+            with open(filename, 'wb') as f:
+                f.write(imgdata)  #now writing those bytes to a file and creating it image file
+
+            image= "image"+"{}".format(i)  #we have done this because otherwise overwriting in same file multiple times was giving some time assertion error
+            try: #here used error handling because some times due to so  much speed, above function can't write image bytes 
+                 #to the file so here when image file remains get empty, so at that time cv2 can't read and show image..so to 
+                 #scape from this issue we have used error handling.....some image we didn't show that's okkay for us it would be buffering
+                image=cv2.imread(filename)  #now image is recived in "image" variable
+                print(image)
+                cv2.imshow('kalyani calling...',image) #showing image..
+                os.remove("{}.jpg".format(i))  #as after showing image used this to remove also image but in my case it was stucking thr
+                #program
+                i=i+1 #increasing counter
+                if cv2.waitKey(100) == 13:
+                    break
+                    
+            except:
+                pass
+
+        except:
+            pass
+    cv2.destroyAllWindows()
+    #this will capture my image and then send it to the server..laterly server will send it to the person2
+def videosender():
+    #sending video
+    s=socket.socket()
+    ip="13.232.156.8"
+    port=2025
+    s.connect((ip,port))
+    cap=cv2.VideoCapture(0)
+    while True:
+        time.sleep(2)
+        ret,photo=cap.read()
+        cv2.imwrite("videocall.jpg",photo)
+        with open("videocall.jpg", 'rb') as f:
+            image_encoded=base64.b64encode(f.read()) #encoding image...
+        s.send(image_encoded) 
+#used threading so that above both function will run in parell
+t_recv=threading.Thread(target=videoreciver)
+t_send=threading.Thread(target=videosender)
+t_recv.start()
+t_send.start()
